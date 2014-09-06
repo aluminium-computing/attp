@@ -1,0 +1,150 @@
+ATTP®
+
+(Aim Text Transfer Protocol)
+
+Status of this document
+
+Current Status: Approved Standard
+
+Status Date: July 7, 2013
+
+Protocol Version: 1.0
+
+Goal
+
+To transfer text over the Aim City Network.
+
+Network Layer
+
+ATTP runs on TCP on port 4779.
+
+Connection Setup
+
+Connect on port 4779 to the desired ATTP server.
+
+The server's response will be
+
+ATTP\<ver> Connection Established
+
+Where <ver> is the protocol version number implemented by the server, without dots. The server will then wait for a command from the client (see Client Commands) before making any further response.
+
+After a Client Command is run, the connection will stay open except if the command is EXIT, or if it is FETCH and its response is 121 Server Busy.
+
+If the server does not understand the client command it returns the following message:
+
+ATTP\<ver> 126 Unknown Command
+
+Where <ver> is the protocol version number implemented by the server, without dots.
+
+Client Commands
+FETCH
+
+Syntax:
+
+FETCH <path> ATTP\<ver>
+
+Where
+
+    <path> is a / separated path indicating the location of a file or directory in the server's serving directory (server root dir).
+
+    <ver> is the protocol version number implemented by the client, without dots.
+
+
+Responses:
+
+ATTP\<ver> <response_code> <response_desc>
+
+[
+
+<32-char random string>
+
+optional_data_body
+
+<32-char random string>
+
+]
+
+    <ver> is the protocol version number implemented by the server, without dots
+
+    response_code response_desc are listed below
+
+    If the response implies a data body, the first line will be a 32-char random string. The actual data body will be all bytes sent until the same string is sent again.
+
+
+Responses:
+
+    100 OK
+    Indicates that the requested file was found and its contents follows in the optional_data_body as described above.
+
+    101 Is A Directory
+    Indicates that the requested "file" was found, but is a directory and a directory listing (equivalent to an ENIX® `ls` command in the directory) follows in the optional_data_body as described above.
+
+    121 Server Busy
+    Indicates that the server has too many active connections to serve the file or directory. Does not send an optional_data_body. After error, server closes connection.
+
+    122 File Busy
+    Indicates that the requested file is busy and cannot be served. Does not send an optional_data_body.
+
+    123 Not Found
+    Indicates that the requested file or directory was not found. Does not send an optional_data_body.
+
+    124 Permission Denied
+    Indicates that the file or directory requested did not have sufficient permissions for the server to serve it. Does not send an optional_data_body.
+
+    125 Unknown Error
+    Indicates that the server encounter an error that is not any of the other errors. Does not send an optional_data_body. 
+
+
+VERSION
+
+Syntax:
+
+VERSION ATTP\<ver>
+
+    <ver> is the protocol version number implemented by the client, without dots.
+
+
+
+Response:
+
+ATTP\<ver>
+
+    <ver> is the protocol version number implemented by the server, without dots.
+
+
+EXIT
+
+Syntax:
+
+EXIT ATTP\<ver>
+
+    <ver> is the protocol version number implemented by the client, without dots.
+
+
+
+Response:
+
+ATTP\<ver> 190 Connection Closed
+
+    <ver> is the protocol version number implemented by the server, without dots.
+
+    After the response, the server will close the connection.
+
+
+
+
+Legal Info
+
+Copyright: Copyright © 2013 Aim Inc.
+
+License:
+
+"
+
+The License for CFR #6162 (stdattp) is Aim Public Standard License:
+
+This work is read-only: you cannot change it, only read and give all of it to others under the terms of this License.
+
+Copyright © 2013 Aim Inc.
+
+"

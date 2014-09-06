@@ -1,0 +1,4 @@
+The port of aim-server should be 4048
+Because that is listed by IANA as 'Unassigned'.
+
+We should use TCP, not UDP

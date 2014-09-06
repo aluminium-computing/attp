@@ -1,0 +1,186 @@
+/* Include all kinds of socket & networking headers ... */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <sys/fcntl.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <sys/poll.h>
+#include <sys/select.h>
+/* ... and good old unistd.h ... */
+#include <unistd.h>
+#include <sys/unistd.h>
+/* ... and good old stdio and string headers */
+#include <dirent.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+/* OK, finally we're done with all those includes */
+
+#define DOCROOT "/srv/aim/"
+
+int main(int argc, char **argv, char **env) {
+  struct addrinfo *myaddrinfo;
+  struct addrinfo ai_filled;
+  struct sockaddr *mysockaddr;
+  struct sockaddr *client_addr;
+  struct sockaddr_in myaddr_in;
+  struct in_addr *in_addr;
+  struct in6_addr *in6_addr;
+  struct sockaddr_in6 *sockaddr_in6;
+  struct sockaddr_storage *sockaddr_storage;
+  int sfd;
+  /* Create a client socket file descriptor. */
+  int csfd;
+  int errval;
+  socklen_t client_addr_size = sizeof(struct sockaddr);
+  ai_filled.ai_family = AF_UNSPEC;
+  ai_filled.ai_socktype = SOCK_STREAM;
+  ai_filled.ai_protocol = /* Beware the Magic Numbers */ 0;
+  ai_filled.ai_addrlen = /* Beware the Magic Numbers */ 2048;
+  ai_filled.ai_addr = mysockaddr;
+  ai_filled.ai_canonname = "127.0.0.1";
+
+  getaddrinfo("127.0.0.1", "4779", &ai_filled, &myaddrinfo);
+  sfd = socket(PF_INET, SOCK_STREAM, 0);
+  /* Fill in information about our new socket. */
+  bzero((char *) &myaddr_in, sizeof(myaddr_in));
+  myaddr_in.sin_family = AF_INET;
+  myaddr_in.sin_port = htons(4779);
+  myaddr_in.sin_addr.s_addr = inet_addr("127.0.0.1");
+  
+
+  if (bind(sfd, (struct sockaddr *)&myaddr_in, sizeof myaddr_in) == -1) {
+    errval = errno;
+    printf("Bind failed.\n%s\n", strerror(errval));
+    return 1;
+  }
+  /* Listen for incoming connections. */
+  while (1) {
+  
+    listen(sfd, 20);
+    fprintf(stderr, "listening on sfd  for csfd's...\n");
+    /* Accept incoming connections detected with listen() and put them on csfd. */
+    csfd = accept(sfd, client_addr, &client_addr_size);
+    if (csfd == -1) { errval = errno; fprintf(stderr, "Red Reera! accept() failed\n%s\n", strerror(errval)); }
+    fprintf(stderr, "... csfd (%d) accepted\n", csfd);
+    /* 
+    char read_buf[1024];
+    int n = 0;
+    bzero(read_buf, 1024);
+    n = read(csfd, read_buf, 1024);
+    if (n > 0) printf("read: %s\n", read_buf);
+    */
+    attp_impl(sfd, csfd);
+  }
+
+  if (shutdown(csfd, SHUT_RDWR) == -1) fprintf(stderr, "shutdown error.\n");
+  if (close(csfd) == -1) fprintf(stderr, "close(csfd) error.\n");
+  if (close(sfd) == -1) fprintf(stderr, "close(sfd) error.\n");
+  return 1;
+  fprintf(stderr, "csfd (%d) accepted\n", csfd);
+}
+
+int attp_impl(int ss, int cs) {
+  /* Implement Connection Setup, Part 2 */
+  /* Create a constant string. */
+  const char *conest = "ATTP\\10 Connection Established\n";
+  int conest_len = strlen(conest);
+  send(cs, conest , conest_len, 0);
+  /* Prepare to recv() in a client command with a buffer. */
+  char cbuf[1024];
+  /* Create a while (1) loop to keep from closing after a client command */
+  while (1) {
+    /* bzero() cbuf to make way for the Client!! */
+    bzero(cbuf, 1024);
+    /* recv() the client's input to the buffer created earlier. */
+    recv(cs, cbuf, 1024, 0);
+    /* strtok() cbuf with ' ' as delimiter */
+    char cwords[4][1024];
+    char *token;
+    int token_count = 0;
+    token = strtok(cbuf, " ");
+    while (token != NULL) {
+      strncpy(cwords[token_count], token, strlen(token));
+      token_count++;
+      token = strtok(NULL, " ");
+    }
+    const char *res_100 = "ATTP\\10 100 OK\n";
+    const char *res_101 = "ATTP\\10 101 Is A Directory\n";
+    const char *res_121 = "ATTP\\10 121 Server Busy\n";
+    const char *res_122 = "ATTP\\10 122 File Busy\n";
+    const char *res_123 = "ATTP\\10 123 Not Found\n";
+    const char *res_124 = "ATTP\\10 124 Permission Denied\n";
+    const char *res_125 = "ATTP\\10 125 Unknown Error\n";
+    const char *res_126 = "ATTP\\10 126 Unknown Command\n";
+    const char *res_190 = "ATTP\\10 190 Connection Closed\n";
+    const char *pver = "ATTP\\10\n";
+    if (strncmp(cwords[0], "FETCH", 5) == 0) {
+      if (token_count != 3) {
+        send(cs, res_126, strlen(res_126), 0);
+        continue;
+      }
+      FILE *fd;
+      char buf[4096];
+      size_t stuff_read;
+      fd = fopen(cwords[1], "r");
+      if (fd == NULL) {
+        if (errno == EACCES) send(cs, res_124, strlen(res_124), 0);
+        if (errno == EMFILE) { send(cs, res_121, strlen(res_121), 0); close(cs); }
+        if (errno == ETXTBSY) send(cs, res_122, strlen(res_122), 0);
+        if (errno == ENOENT) send(cs, res_123, strlen(res_123), 0);
+        if (errno == EISDIR) { 
+          send(cs, res_124, strlen(res_101), 0);
+          int i;
+          char boundary[32];
+          char sendbuf[1024];
+          for (i=0; i < 31; i++) {
+            boundary[i] = (rand() % 220) + 33;
+          }
+          boundary[31] = '\n';
+          send(cs, boundary, 32, 0);
+          
+          DIR *dirp;
+          char directory[1024] = "/srv/aim/";
+          strncat(directory, cwords[1], 1016);
+          struct dirent *dirconts;
+          dirp=opendir(directory);
+          dirconts = readdir(dirp);
+          printf(".\n");
+          while (dirconts=readdir(dirp)) {
+            snprintf(sendbuf, 1024, "%s\n", dirconts->d_name);
+            send(cs, sendbuf, strlen(sendbuf), 0);
+          }
+        }         int i;
+          char boundary[32];
+          char sendbuf[1024];
+          for (i=0; i < 31; i++) {
+            boundary[i] = (rand() % 220) + 33;
+          }
+          boundary[31] = '\n';
+
+        send(cs, boundary, strlen(boundary), 0);
+      }
+      else {
+        while (!feof(fd)) {
+          /* stuff_read = fread(buf, sizeof(char), 4096, fd);
+          if (stuff_read) {
+            send(cs, buf, strlen(buf), 0);
+          */
+          sendfile(cs, fd, NULL, 1024);
+          } 
+        }
+      }
+    }
+    else if (strncmp(cwords[0], "EXIT", 4) == 0) {
+      send(cs, res_190, strlen(res_190), 0);
+      close(cs);
+    }
+    else if (strncmp(cwords[0], "VERSION", 7) == 0) {
+      send(cs, pver, strlen(pver), 0); 
+    } else { 
+
+      send(cs, res_126, strlen(res_126), 0);
+    }
+  }
