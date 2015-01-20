@@ -1,7 +1,7 @@
 all: attpd
 
-init:
-	mkdir ./out
+init: 
+	mkdir -p ./out
 
 attpd: init
 	gcc server.c -o out/attpd
