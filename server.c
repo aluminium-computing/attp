@@ -66,16 +66,9 @@ int main(int argc, char **argv, char **env) {
     csfd = accept(sfd, client_addr, &client_addr_size);
     if (csfd == -1) { errval = errno; fprintf(stderr, "Red Reera! accept() failed\n%s\n", strerror(errval)); }
     fprintf(stderr, "... csfd (%d) accepted\n", csfd);
-    /* 
-    char read_buf[1024];
-    int n = 0;
-    bzero(read_buf, 1024);
-    n = read(csfd, read_buf, 1024);
-    if (n > 0) printf("read: %s\n", read_buf);
-    */
     attp_impl(sfd, csfd);
     fprintf(stderr, "...Done with (%d)\n", csfd);
-    if (shutdown(csfd, SHUT_RDWR) == -1) fprintf(stderr, "shutdown error.\n");
+    if (shutdown(csfd, SHUT_RDWR) == -1) fprintf(stderr, "shutdown error: %s\n", strerror(errno));
     if (close(csfd) == -1) fprintf(stderr, "close(csfd) error.\n");
   }
 
@@ -184,15 +177,6 @@ int attp_impl(int ss, int cs) {
         send(cs, boundary, strlen(boundary), 0);
         int bytes_sent;
         while (0 < sendfile(cs, fileno(fd), NULL, 1024)) {}
-        /* 
-        while (!feof(fd)) {
-          stuff_read = fread(buf, sizeof(char), 4096, fd);
-          if (stuff_read) {
-            send(cs, buf, strlen(buf), 0);
-          
-          sendfile(cs, fileno(fd), NULL, 1024);
-        }
-        */
         send(cs, boundary, strlen(boundary), 0);
       }
     }

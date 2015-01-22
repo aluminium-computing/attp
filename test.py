@@ -5,12 +5,11 @@ import socket
 
 class Test(object):
 	def __init__(self, command, uri):
-		self.command = command
-		self.uri = uri
+                self.attp_command = "%s %s ATTP\\10" % (command, uri)
+
 	def doTest(self, sock):
-		sendbuf = "%s %s ATTP\\10" % (self.command, self.uri)
-		print "Sending: %s" % (sendbuf)
-		sock.sendall(sendbuf)
+		print "Sending: %s" % (self.attp_command)
+		sock.sendall(self.attp_command)
 		sockfile = sock.makefile()
 		line = sockfile.readline() # we want line 2
 		if line != "ATTP\\10 Connection Established\n":
@@ -24,7 +23,6 @@ class Test(object):
 		else:
 			print "Test failed: line 3 was %s" % line
 			return -1
- 
 			
 
 def getSocket():
