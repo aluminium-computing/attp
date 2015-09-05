@@ -1,8 +1,13 @@
-#include "server.h"
+#define OSX __APPLE__ && __MACH__
 
+#include "server.h"
 /* Include all kinds of socket & networking headers ... */
 #include <sys/types.h>
-#include <sys/sendfile.h>
+#ifndef OSX
+  #include <sys/sendfile.h>
+#else
+  #include <sys/uio.h>
+#endif
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/fcntl.h>
@@ -59,7 +64,6 @@ int main(int argc, char **argv, char **env) {
   bzero((char *) &mysockaddr, sizeof(mysockaddr));
   bzero((char *) &client_addr, sizeof(client_addr));
   while (1) {
-  
     listen(sfd, 20);
     fprintf(stderr, "listening on sfd  for csfd's...\n");
     /* Accept incoming connections detected with listen() and put them on csfd. */
@@ -86,6 +90,7 @@ int attp_impl(int ss, int cs) {
   /* Prepare to recv() in a client command with a buffer. */
   char cbuf[1024];
   /* Create a while (1) loop to keep from closing after a client command */
+  seedRand();
   while (1) {
     /* bzero() cbuf to make way for the Client!! */
     bzero(cbuf, 1024);
@@ -144,6 +149,7 @@ int attp_impl(int ss, int cs) {
       int i;
       char boundary[32];
       for (i=0; i < 30; i++) {
+          
         boundary[i] = (rand() % 220) + 33;
       }
       boundary[30] = '\n';
@@ -176,7 +182,13 @@ int attp_impl(int ss, int cs) {
       else {
         send(cs, boundary, strlen(boundary), 0);
         int bytes_sent;
-        while (0 < sendfile(cs, fileno(fd), NULL, 1024)) {}
+        #ifndef OSX
+          while (0 < sendfile(cs, fileno(fd), NULL, 1024)) {}
+          printf("Linux\n");
+        #else
+          off_t len = 0;
+          while (0 < sendfile(fileno(fd), cs, 0, &len, NULL, 0)) {}
+        #endif
         send(cs, boundary, strlen(boundary), 0);
       }
     }
@@ -207,5 +219,11 @@ int isDirectory(FILE* fd) {
   } else {
     return 0;
   }
+}
+
+void seedRand() {
+  FILE *randFile = fopen("/dev/random", "r");
+  char randChar = getc(randFile);
+  srand(randChar);
 }
 

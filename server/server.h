@@ -6,5 +6,6 @@
 #define AIM_SERVER_HEADER
 
 int attp_impl(int ss, int cs);
+void seedRand();
 
 #endif
